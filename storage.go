@@ -10,6 +10,7 @@ type Storage interface {
 	CreateAccount(*Account) error
 	DeleteAccout(int) error
 	UpdateAccount(*Account) error
+	GetAccounts() ([]*Account, error)
 	GetAccountById(int) (*Account, error)
 }
 
@@ -85,6 +86,54 @@ func (s *PostgressStore) UpdateAccount(*Account) error {
 	return nil
 }
 
-func (s *PostgressStore) GetAccountById(int) (*Account, error) {
-	return nil, nil
+func (s *PostgressStore) GetAccounts() ([]*Account, error) {
+	accounts := []*Account{}
+
+	rows, err := s.db.Query("SELECT * FROM account")
+	if err != nil {
+		return nil, err
+	}
+
+	for rows.Next() {
+		account := new(Account)
+
+		err := rows.Scan(
+			&account.ID,
+			&account.FirstName,
+			&account.LastName,
+			&account.Number,
+			&account.Balance,
+			&account.CreatedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		accounts = append(accounts, account)
+	}
+
+	return accounts, nil
+}
+
+func (s *PostgressStore) GetAccountById(id int) (*Account, error) {
+	account := new(Account)
+
+	stmt, err := s.db.Prepare("SELECT * FROM account WHERE id = $1 ")
+	if err != nil {
+		return nil, err
+	}
+
+	err = stmt.QueryRow(id).Scan(
+		&account.ID,
+		&account.FirstName,
+		&account.FirstName,
+		&account.Number,
+		&account.Balance,
+		&account.CreatedAt)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return account, nil
 }
