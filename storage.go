@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"fmt"
 
 	_ "github.com/lib/pq"
 )
@@ -78,8 +79,10 @@ func (s *PostgressStore) CreateAccount(account *Account) error {
 	return nil
 }
 
-func (s *PostgressStore) DeleteAccout(int) error {
-	return nil
+func (s *PostgressStore) DeleteAccout(id int) error {
+	_, err := s.db.Query("DELETE FROM account WHERE id = $1", id)
+
+	return err
 }
 
 func (s *PostgressStore) UpdateAccount(*Account) error {
@@ -95,16 +98,8 @@ func (s *PostgressStore) GetAccounts() ([]*Account, error) {
 	}
 
 	for rows.Next() {
-		account := new(Account)
+		account, err := scanIntoAccount(rows)
 
-		err := rows.Scan(
-			&account.ID,
-			&account.FirstName,
-			&account.LastName,
-			&account.Number,
-			&account.Balance,
-			&account.CreatedAt,
-		)
 		if err != nil {
 			return nil, err
 		}
@@ -116,24 +111,28 @@ func (s *PostgressStore) GetAccounts() ([]*Account, error) {
 }
 
 func (s *PostgressStore) GetAccountById(id int) (*Account, error) {
-	account := new(Account)
-
-	stmt, err := s.db.Prepare("SELECT * FROM account WHERE id = $1 ")
+	rows, err := s.db.Query("SELECT * FROM account WHERE id = $1", id)
 	if err != nil {
 		return nil, err
 	}
 
-	err = stmt.QueryRow(id).Scan(
+	for rows.Next() {
+		return scanIntoAccount(rows)
+	}
+
+	return nil, fmt.Errorf("account %d not found", id)
+}
+
+func scanIntoAccount(rows *sql.Rows) (*Account, error) {
+	account := new(Account)
+	err := rows.Scan(
 		&account.ID,
 		&account.FirstName,
-		&account.FirstName,
+		&account.LastName,
 		&account.Number,
 		&account.Balance,
-		&account.CreatedAt)
+		&account.CreatedAt,
+	)
 
-	if err != nil {
-		return nil, err
-	}
-
-	return account, nil
+	return account, err
 }
